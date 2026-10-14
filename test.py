@@ -29,7 +29,19 @@ def print_simulate(graph):
     print(f"Walk: {walk}")
     print("Finished!")
 
-
+def print_probabilities(data):
+    values = {}
+    for i in range(len(data)):
+        if data[i] in values:
+            values[data[i]] += 1
+        else:
+            values[data[i]] = 1
+            
+    total_items = len(data)
+    for number, count in values.items():
+        probability = (count / total_items) * 100
+        print(f"Number of simulations finished in {number} steps: {probability:.3f}% ({count}/{total_items:,})")
+    
 
 def simulate(graph):
     count = 0
@@ -68,7 +80,7 @@ def view_data(data):
     plt.show()
 
 def main():
-    graph = { #straight line/walk
+    graph1 = { #straight line/walk (5 vertices)
         1: [2],
         2: [1, 3],
         3: [2, 4],
@@ -76,7 +88,7 @@ def main():
         5: [4]
     }
 
-    graph2 = {
+    graph2 = {#longer straight line (10 vertices)
         1: [2],
         2: [1,3],
         3: [2,4],
@@ -87,6 +99,23 @@ def main():
         8: [7, 9],
         9: [8, 10],
         10: [9],
+    }
+
+    graph = {# cycle (5 vertices)
+        1: [5,2],
+        2: [1,3],
+        3: [2,4],
+        4: [3,5],
+        5: [4,1],
+    }
+
+    graph4 = {#tree (6 vertices)
+        1: [2,3],
+        2: [1,4,5],
+        3: [1,6],
+        4: [2],
+        5: [2],
+        6: [3]
     }
     #print(print_simulate(graph))
 
@@ -99,6 +128,7 @@ def main():
     ordered = sorted(steps_needed)
     #print(ordered)
     view_data(ordered)
+    print_probabilities(ordered)
 
 if __name__ == '__main__':
     main()
