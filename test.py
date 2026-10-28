@@ -60,7 +60,7 @@ T3 = {
     4: [2, 5],
     5: [4, 6, 7],
     6: [5],
-    7: [6]
+    7: [5]
 }
 
 
@@ -69,14 +69,13 @@ graphs = {
     "Spider tree 2": T2,
     "Straight line": P,
     "Cycle": C,
-    "Tree T4": T3
+    "Tree T3": T3
 }
 
 
 # --------------------------------------------------
 # Find shortest distances between vertices
 # --------------------------------------------------
-
 def shortest_distances(graph, start):
     distances = {start: 0}
     queue = [start]
@@ -95,7 +94,6 @@ def shortest_distances(graph, start):
 # --------------------------------------------------
 # Find the two farthest-apart vertices
 # --------------------------------------------------
-
 def find_farthest_vertices(graph):
     vertices = list(graph.keys())
 
@@ -116,7 +114,6 @@ def find_farthest_vertices(graph):
 # --------------------------------------------------
 # Simulate two random walkers
 # --------------------------------------------------
-
 def simulate(graph, start_a, start_b):
 
     position_a = start_a
@@ -175,14 +172,38 @@ def simulate(graph, start_a, start_b):
 # Live Animated Traversal using Matplotlib & NetworkX
 # --------------------------------------------------
 def animate_sample_traversal(name, graph_dict, path_a, path_b, T1):
-    """Anates the step-by-step traversal of walkers A and B until collision T1."""
+    """Animates the step-by-step traversal of walkers A and B until collision T1 using fixed layouts."""
     G = nx.Graph()
     for node, neighbors in graph_dict.items():
         for n in neighbors:
             G.add_edge(node, n)
 
     fig, ax = plt.subplots(figsize=(7, 6))
-    pos = nx.spring_layout(G, seed=42)
+
+    if "Straight line" in name:
+        pos = {1: (0, 0), 2: (1, 0), 3: (2, 0), 4: (3, 0), 5: (4, 0), 6: (5, 0), 7: (6, 0)}
+    elif "Cycle" in name:
+        pos = {
+            1: (0, 1.5), 2: (1.2, 1), 3: (1.5, -0.2), 4: (0.7, -1.2),
+            5: (-0.7, -1.2), 6: (-1.5, -0.2), 7: (-1.2, 1)
+        }
+    elif "Tree T3" in name:
+        pos = {
+            1: (0, 2), 2: (1, 2), 3: (0.8, 1.8), 4: (2, 2),
+            5: (3, 2), 6: (3.2, 1.8), 7: (4, 2)
+        }
+    elif "Spider tree 1" in name:
+        pos = {
+            1: (0, 1), 2: (1, 1), 3: (2, 1), 4: (3, 1), 5: (4, 1),
+            6: (2, 0), 7: (2, -1)
+        }
+    elif "Spider tree 2" in name:
+        pos = {
+            1: (0, 1), 2: (1, 1), 3: (2, 1), 4: (3, 1), 5: (4, 1),
+            6: (3, 0), 7: (3, -1)
+        }
+    else:
+        pos = nx.spring_layout(G, seed=42) # Fallback
 
     def update(frame):
         ax.clear()
@@ -195,24 +216,21 @@ def animate_sample_traversal(name, graph_dict, path_a, path_b, T1):
         current_a = path_a[frame]
         current_b = path_b[frame]
 
-        # Color nodes if occupied or collided
         if frame == T1 and current_a == current_b:
-            # Collision moment! Highlight node in red
             nx.draw_networkx_nodes(G, pos, nodelist=[current_a], node_size=900, node_color='red', ax=ax)
             ax.set_title(f"Graph: {name}\n💥 COLLISION! T1 = {T1} on Node {current_a}", fontsize=13, fontweight='bold', color='red')
         else:
-            # Normal live movement step
             node_colors = []
             node_sizes = []
             for node in G.nodes():
                 if node == current_a and node == current_b:
-                    node_colors.append('purple') # Same node, different simulation logic safety check if ever needed
+                    node_colors.append('purple')
                     node_sizes.append(900)
                 elif node == current_a:
-                    node_colors.append('skyblue') # Walker A
+                    node_colors.append('skyblue')
                     node_sizes.append(800)
                 elif node == current_b:
-                    node_colors.append('orange') # Walker B
+                    node_colors.append('orange')
                     node_sizes.append(800)
                 else:
                     node_colors.append('lightgray')
@@ -223,7 +241,6 @@ def animate_sample_traversal(name, graph_dict, path_a, path_b, T1):
 
         ax.axis('off')
 
-    # Create animation (interval=600 means 600ms per frame so you can watch them move)
     ani = animation.FuncAnimation(fig, update, frames=T1 + 1, interval=600, repeat=False)
     plt.tight_layout()
     plt.show()
