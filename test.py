@@ -1,6 +1,7 @@
 import random
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+from matplotlib.widgets import Button
 import numpy as np
 import networkx as nx
 
@@ -169,87 +170,135 @@ def simulate(graph, start_a, start_b):
 
 
 # --------------------------------------------------
-# Live Animated Traversal using Matplotlib & NetworkX
+# Interactive Traversal Viewer with Buttons & Clean Layouts
 # --------------------------------------------------
-def animate_sample_traversal(name, graph_dict, path_a, path_b, T1):
-    """Animates the step-by-step traversal of walkers A and B until collision T1 using fixed layouts."""
-    G = nx.Graph()
-    for node, neighbors in graph_dict.items():
-        for n in neighbors:
-            G.add_edge(node, n)
+class InteractiveWalkViewer:
+    def __init__(self, name, graph_dict, paths_list):
+        self.name = name
+        self.graph_dict = graph_dict
+        self.paths_list = paths_list
+        self.current_run_idx = 0
 
-    fig, ax = plt.subplots(figsize=(7, 6))
+        self.G = nx.Graph()
+        for node, neighbors in graph_dict.items():
+            for n in neighbors:
+                self.G.add_edge(node, n)
 
-    if "Straight line" in name:
-        pos = {1: (0, 0), 2: (1, 0), 3: (2, 0), 4: (3, 0), 5: (4, 0), 6: (5, 0), 7: (6, 0)}
-    elif "Cycle" in name:
-        pos = {
-            1: (0, 1.5), 2: (1.2, 1), 3: (1.5, -0.2), 4: (0.7, -1.2),
-            5: (-0.7, -1.2), 6: (-1.5, -0.2), 7: (-1.2, 1)
-        }
-    elif "Tree T3" in name:
-        pos = {
-            1: (0, 2), 2: (1, 2), 3: (0.8, 1.8), 4: (2, 2),
-            5: (3, 2), 6: (3.2, 1.8), 7: (4, 2)
-        }
-    elif "Spider tree 1" in name:
-        pos = {
-            1: (0, 1), 2: (1, 1), 3: (2, 1), 4: (3, 1), 5: (4, 1),
-            6: (2, 0), 7: (2, -1)
-        }
-    elif "Spider tree 2" in name:
-        pos = {
-            1: (0, 1), 2: (1, 1), 3: (2, 1), 4: (3, 1), 5: (4, 1),
-            6: (3, 0), 7: (3, -1)
-        }
-    else:
-        pos = nx.spring_layout(G, seed=42) # Fallback
-
-    def update(frame):
-        ax.clear()
-        
-        # Draw base graph
-        nx.draw_networkx_nodes(G, pos, node_size=700, node_color='lightgray', ax=ax)
-        nx.draw_networkx_edges(G, pos, width=2, edge_color='gray', ax=ax)
-        nx.draw_networkx_labels(G, pos, font_size=12, font_weight='bold', ax=ax)
-
-        current_a = path_a[frame]
-        current_b = path_b[frame]
-
-        if frame == T1 and current_a == current_b:
-            nx.draw_networkx_nodes(G, pos, nodelist=[current_a], node_size=900, node_color='red', ax=ax)
-            ax.set_title(f"Graph: {name}\n💥 COLLISION! T1 = {T1} on Node {current_a}", fontsize=13, fontweight='bold', color='red')
+        # Fixed layout positions for clear visualizations
+        if "Straight line" in name:
+            self.pos = {1: (0, 0), 2: (1, 0), 3: (2, 0), 4: (3, 0), 5: (4, 0), 6: (5, 0), 7: (6, 0)}
+        elif "Cycle" in name:
+            self.pos = {
+                1: (0, 1.5), 2: (1.2, 1), 3: (1.5, -0.2), 4: (0.7, -1.2),
+                5: (-0.7, -1.2), 6: (-1.5, -0.2), 7: (-1.2, 1)
+            }
+        elif "Tree T3" in name:
+            self.pos = {
+                1: (0, 2), 2: (1, 2), 3: (0.8, 1.8), 4: (2, 2),
+                5: (3, 2), 6: (3.2, 1.8), 7: (4, 2)
+            }
+        elif "Spider tree 1" in name:
+            self.pos = {
+                1: (0, 1), 2: (1, 1), 3: (2, 1), 4: (3, 1), 5: (4, 1),
+                6: (2, 0), 7: (2, -1)
+            }
+        elif "Spider tree 2" in name:
+            self.pos = {
+                1: (0, 1), 2: (1, 1), 3: (2, 1), 4: (3, 1), 5: (4, 1),
+                6: (3, 0), 7: (3, -1)
+            }
         else:
-            node_colors = []
-            node_sizes = []
-            for node in G.nodes():
-                if node == current_a and node == current_b:
-                    node_colors.append('purple')
-                    node_sizes.append(900)
-                elif node == current_a:
-                    node_colors.append('skyblue')
-                    node_sizes.append(800)
-                elif node == current_b:
-                    node_colors.append('orange')
-                    node_sizes.append(800)
-                else:
-                    node_colors.append('lightgray')
-                    node_sizes.append(700)
-            
-            nx.draw_networkx_nodes(G, pos, nodelist=list(G.nodes()), node_size=node_sizes, node_color=node_colors, ax=ax)
-            ax.set_title(f"Graph: {name} | Live Traversal\nTimestep: t = {frame} (A on node {current_a}, B on node {current_b})", fontsize=12)
+            self.pos = nx.spring_layout(self.G, seed=42)
 
-        ax.axis('off')
+        self.fig, self.ax = plt.subplots(figsize=(7, 7))
+        plt.subplots_adjust(bottom=0.2)  # Make room at bottom for interactive buttons
 
-    ani = animation.FuncAnimation(fig, update, frames=T1 + 1, interval=600, repeat=False)
-    plt.tight_layout()
+        # Define Interactive Buttons ([left, bottom, width, height])
+        ax_replay = plt.axes([0.12, 0.05, 0.2, 0.075])
+        ax_random = plt.axes([0.35, 0.05, 0.28, 0.075])
+        ax_next = plt.axes([0.66, 0.05, 0.22, 0.075])
+
+        self.btn_replay = Button(ax_replay, 'Replay Walk')
+        self.btn_replay.on_clicked(self.replay_walk)
+
+        self.btn_random = Button(ax_random, 'Random Walk')
+        self.btn_random.on_clicked(self.random_walk)
+
+        self.btn_next = Button(ax_next, 'Next Walk ->')
+        self.btn_next.on_clicked(self.next_walk)
+
+        self.anim = None
+        self.start_animation()
+
+    def start_animation(self):
+        if self.anim and hasattr(self.anim, 'event_source') and self.anim.event_source:
+            self.anim.event_source.stop()
+
+        self.path_a, self.path_b, self.T1 = self.paths_list[self.current_run_idx]
+
+        def update(frame):
+            self.ax.clear()
+            nx.draw_networkx_nodes(self.G, self.pos, node_size=700, node_color='lightgray', ax=self.ax)
+            nx.draw_networkx_edges(self.G, self.pos, width=2, edge_color='gray', ax=self.ax)
+            nx.draw_networkx_labels(self.G, self.pos, font_size=12, font_weight='bold', ax=self.ax)
+
+            current_a = self.path_a[frame]
+            current_b = self.path_b[frame]
+
+            if frame == self.T1 and current_a == current_b:
+                nx.draw_networkx_nodes(self.G, self.pos, nodelist=[current_a], node_size=900, node_color='red', ax=self.ax)
+                self.ax.set_title(
+                    f"Graph: {self.name} (Simulation Run {self.current_run_idx + 1})\n💥 COLLISION! T1 = {self.T1} on Node {current_a}",
+                    fontsize=14, fontweight='bold', color='red', pad=15
+                )
+            else:
+                node_colors = []
+                node_sizes = []
+                for node in self.G.nodes():
+                    if node == current_a and node == current_b:
+                        node_colors.append('purple')
+                        node_sizes.append(900)
+                    elif node == current_a:
+                        node_colors.append('skyblue')
+                        node_sizes.append(800)
+                    elif node == current_b:
+                        node_colors.append('orange')
+                        node_sizes.append(800)
+                    else:
+                        node_colors.append('lightgray')
+                        node_sizes.append(700)
+                
+                nx.draw_networkx_nodes(self.G, self.pos, nodelist=list(self.G.nodes()), node_size=node_sizes, node_color=node_colors, ax=self.ax)
+                self.ax.set_title(
+                    f"Graph: {self.name} | Run {self.current_run_idx + 1} of {len(self.paths_list)}\nTimestep: t = {frame} (A on node {current_a}, B on node {current_b})",
+                    fontsize=12, pad=15
+                )
+
+            self.ax.axis('off')
+
+        self.anim = animation.FuncAnimation(self.fig, update, frames=self.T1 + 1, interval=600, repeat=False)
+        self.fig.canvas.draw_idle()
+
+    def replay_walk(self, event):
+        self.start_animation()
+
+    def random_walk(self, event):
+        self.current_run_idx = random.randint(0, len(self.paths_list) - 1)
+        self.start_animation()
+
+    def next_walk(self, event):
+        self.current_run_idx = (self.current_run_idx + 1) % len(self.paths_list)
+        self.start_animation()
+
+
+def animate_sample_traversal(name, graph_dict, paths_list):
+    viewer = InteractiveWalkViewer(name, graph_dict, paths_list)
     plt.show()
 
 
 # --------------------------------------------------
 # Plot histograms for one graph
 # --------------------------------------------------
-
 def plot_histograms(name, results):
 
     T_values = [row[0] for row in results]
@@ -290,7 +339,6 @@ def plot_histograms(name, results):
 # --------------------------------------------------
 # Main program
 # --------------------------------------------------
-
 def main():
 
     number_of_runs = 1000
@@ -314,20 +362,14 @@ def main():
         )
 
         results = []
-        sample_path_a = None
-        sample_path_b = None
-        sample_T1 = None
+        all_paths = []
 
         for run in range(1, number_of_runs + 1):
 
             T1, number_a, number_b, percent_a, percent_b, path_a, path_b = simulate(graph, start_a, start_b)
             
             results.append((T1, number_a, number_b, percent_a, percent_b))
-
-            if run == 1:
-                sample_path_a = path_a
-                sample_path_b = path_b
-                sample_T1 = T1
+            all_paths.append((path_a, path_b, T1))
 
             print(
                 f"{run:3d} | {T1:4d} | {number_a:4d} | "
@@ -354,9 +396,7 @@ def main():
 
         print(f"A visited all {all_vertices} vertices: {count_a_all}/{number_of_runs} runs")
         print(f"B visited all {all_vertices} vertices: {count_b_all}/{number_of_runs} runs")
-
-        # Play live animation of Run 1 traversal
-        animate_sample_traversal(name, graph, sample_path_a, sample_path_b, sample_T1)
+        animate_sample_traversal(name, graph, all_paths)
 
         # Show the histograms
         plot_histograms(name, results)
