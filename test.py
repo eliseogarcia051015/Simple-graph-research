@@ -194,7 +194,11 @@ def simulate(graph, start_a, start_b):
 # --------------------------------------------------
 def export_results(master_data):
     """Saves all simulation metrics, probability distributions, and coverage stats into JSON and CSV files."""
-    os.makedirs("/home/eliseogarcia/Desktop/VScode/0_research/simulation_outputs", exist_ok=True)
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(script_dir, "simulation_outputs")
+
+    os.makedirs(output_dir, exist_ok=True)
     summary_export = {}
 
     for (n_verts, name), data in master_data.items():
@@ -236,7 +240,7 @@ def export_results(master_data):
         }
 
         # Export individual CSV for detailed data inspection
-        csv_filename = f"simulation_outputs/results_N{n_verts}_{name.replace(' ', '_')}.csv"
+        csv_filename = os.path.join(output_dir, f"results_N{n_verts}_{name.replace(' ', '_')}.csv")
         with open(csv_filename, mode="w", newline="") as csv_file:
             writer = csv.writer(csv_file)
             writer.writerow(["Run", "T1", "Distinct_VA", "Distinct_VB", "Percent_A", "Percent_B"])
@@ -244,7 +248,7 @@ def export_results(master_data):
                 writer.writerow([idx, r[0], r[1], r[2], r[3], r[4]])
 
     # Export master summary JSON
-    json_filename = "simulation_outputs/simulation_results_summary.json"
+    json_filename = os.path.join(output_dir, "simulation_results_summary.json")
     with open(json_filename, mode="w") as json_file:
         json.dump(summary_export, json_file, indent=4)
 
