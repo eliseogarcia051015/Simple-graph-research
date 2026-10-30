@@ -18,96 +18,108 @@ VERTEX_COUNTS = [7, 8, 9, 10]
 # Graph Generators for N = 7, 8, 9, 10
 # --------------------------------------------------
 
+def _adjacency_from_edges(vertices, edges):
+    """Build a symmetric adjacency dictionary from an edge list."""
+    graph = {v: [] for v in vertices}
+    for u, v in edges:
+        graph[u].append(v)
+        graph[v].append(u)
+    return {v: sorted(neighbors) for v, neighbors in graph.items()}
+
+
+def _extend_tree_from_alternating_ends(graph, n, end_vertices):
+    """Add new vertices by extending alternating, opposing terminal arms."""
+    graph = {v: list(neighbors) for v, neighbors in graph.items()}
+    next_vertex = 8
+    side_index = 0
+
+    while len(graph) < n:
+        leaf = end_vertices[side_index % len(end_vertices)]
+        new_vertex = next_vertex
+        graph[leaf].append(new_vertex)
+        graph[new_vertex] = [leaf]
+        end_vertices[side_index % len(end_vertices)] = new_vertex
+        next_vertex += 1
+        side_index += 1
+
+    return {v: sorted(neighbors) for v, neighbors in graph.items()}
+
+
+def _extend_cycle(n):
+    """Subdivide alternating, separated edges of the original 7-cycle."""
+    order = [1, 2, 3, 4, 5, 6, 7]
+    # Insert the first new vertex on one side, the second on the opposite side.
+    # Further vertices continue around the cycle in a spaced-out pattern.
+    insertion_edges = [(7, 1), (3, 4), (5, 6)]
+
+    for new_vertex, (u, v) in enumerate(insertion_edges, start=8):
+        if new_vertex > n:
+            break
+        index = order.index(u)
+        if order[(index + 1) % len(order)] != v:
+            raise ValueError("Cycle extension edge is not consecutive.")
+        order.insert(index + 1, new_vertex)
+
+    edges = [(order[i], order[(i + 1) % len(order)]) for i in range(len(order))]
+    return _adjacency_from_edges(order, edges), order
+
+
 def generate_graphs(n):
-    """Generates the 5 graph topologies scaled for n vertices."""
-    
-    # 1. Straight line (Path graph P_n)
-    line = {}
-    for i in range(1, n + 1):
-        neighbors = []
-        if i > 1:
-            neighbors.append(i - 1)
-        if i < n:
-            neighbors.append(i + 1)
-        line[i] = neighbors
+    """Generate the five original 7-vertex graphs, extending their arms for n>7.
 
-    # 2. Cycle graph C_n
-    cycle = {}
-    for i in range(1, n + 1):
-        prev_node = n if i == 1 else i - 1
-        next_node = 1 if i == n else i + 1
-        cycle[i] = [prev_node, next_node]
+    The original vertices and edges are preserved. Tree extensions are added
+    alternately to opposing terminal arms; cycle extensions subdivide separated
+    edges; path extensions alternate between its two endpoints.
+    """
+    if n < 7 or n > 10:
+        raise ValueError("This graph family supports 7 through 10 vertices.")
 
-    # 3. Tree T3 (Spine with branched central node and trailing branch)
-    t3 = {}
-    for i in range(1, n + 1):
-        t3[i] = []
-    
-    # Build a stable tree topology across vertex counts
-    # Root/spine structure
-    mid = n // 2
-    for i in range(1, n):
-        t3[i].append(i + 1)
-        t3[i + 1].append(i)
-    
-    # Add extra structural branches based on n to match T3 shape semantics
-    if n >= 3:
-        # Add a branch off node 2
-        if 3 in t3[2]: t3[2].remove(3)
-        t3[2].extend([3, 4] if 4 <= n else [3])
-        if 2 not in t3[3]: t3[3].append(2)
-    
-    # Clean up symmetric adjacency and remove duplicate entries
-    for node in t3:
-        t3[node] = sorted(list(set(t3[node])))
+    # T1: the exact tree supplied by the user.
+    T1 = _adjacency_from_edges(
+        range(1, 8),
+        [(1, 2), (2, 3), (3, 4), (4, 5), (3, 6), (6, 7)]
+    )
+    T1 = _extend_tree_from_alternating_ends(T1, n, [1, 5])
 
-    # 4. Spider Tree 1 (Long spine with legs attached to a central hub)
-    spider1 = {}
-    for i in range(1, n + 1):
-        spider1[i] = []
-    
-    hub = n // 2
-    for i in range(1, n):
-        spider1[i].append(i + 1)
-        spider1[i + 1].append(i)
-    
-    # Add legs at the hub
-    if hub > 1 and hub < n:
-        leg1 = hub - 1
-        leg2 = hub + 1
-        # Add extra hanging nodes if n >= 8
-        if n >= 8:
-            extra_node = n
-            spider1[hub].append(extra_node)
-            spider1[extra_node] = [hub]
+    # T2: the exact three-armed spider supplied by the user.
+    T2 = _adjacency_from_edges(
+        range(1, 8),
+        [(1, 2), (2, 3), (3, 4), (4, 5), (4, 6), (6, 7)]
+    )
+    T2 = _extend_tree_from_alternating_ends(T2, n, [1, 7])
 
-    for node in spider1:
-        spider1[node] = sorted(list(set(spider1[node])))
+    # P: straight path. New vertices are added to opposite endpoints in turn.
+    path_order = [1, 2, 3, 4, 5, 6, 7]
+    left_end, right_end = 1, 7
+    for new_vertex in range(8, n + 1):
+        if new_vertex % 2 == 0:
+            path_order.insert(0, new_vertex)
+            left_end = new_vertex
+        else:
+            path_order.append(new_vertex)
+            right_end = new_vertex
+    P = _adjacency_from_edges(
+        path_order,
+        [(path_order[i], path_order[i + 1]) for i in range(len(path_order) - 1)]
+    )
 
-    # 5. Spider Tree 2 (Asymmetric spider tree variant)
-    spider2 = {}
-    for i in range(1, n + 1):
-        spider2[i] = []
-    
-    for i in range(1, n):
-        spider2[i].append(i + 1)
-        spider2[i + 1].append(i)
-    
-    if n >= 7:
-        branch_point = n - 2
-        leaf = n
-        spider2[branch_point].append(leaf)
-        spider2[leaf] = [branch_point]
+    # C: cycle, extended by subdividing separated edges rather than changing
+    # the original cycle into a different graph.
+    C, cycle_order = _extend_cycle(n)
 
-    for node in spider2:
-        spider2[node] = sorted(list(set(spider2[node])))
+    # T3 / Tree T4: the exact two-branching-vertex tree supplied by the user.
+    T3 = _adjacency_from_edges(
+        range(1, 8),
+        [(1, 2), (2, 3), (2, 4), (4, 5), (5, 6), (5, 7)]
+    )
+    T3 = _extend_tree_from_alternating_ends(T3, n, [1, 7])
 
     return {
-        "Straight line": line,
-        "Cycle": cycle,
-        "Tree T3": t3,
-        "Spider tree 1": spider1,
-        "Spider tree 2": spider2
+        "Spider tree 1": T1,
+        "Spider tree 2": T2,
+        "Straight line": P,
+        "Cycle": C,
+        "Tree T4": T3
     }
 
 
@@ -433,16 +445,87 @@ class GraphDashboard:
             for neighbor in neighbors:
                 G.add_edge(node, neighbor)
 
-        # Generate positions for every vertex count. The old hand-written
-        # layouts only contained coordinates for seven vertices.
+        n = len(graph)
+
         if name == "Straight line":
-            pos = {node: (node - 1, 0) for node in graph}
+            # Keep original vertices 1..7 in their original order. Extra
+            # vertices extend alternately from the left and right ends.
+            order = []
+            left = 1
+            right = 7
+            # Recover the unique path from an endpoint, then place it straight.
+            endpoints = [v for v in G.nodes() if G.degree(v) == 1]
+            current = endpoints[0]
+            previous = None
+            while True:
+                order.append(current)
+                following = [v for v in G.neighbors(current) if v != previous]
+                if not following:
+                    break
+                previous, current = current, following[0]
+            pos = {node: (i, 0) for i, node in enumerate(order)}
+
         elif name == "Cycle":
-            pos = nx.circular_layout(G)
+            # Follow the cycle in label order, including inserted vertices.
+            start = 1
+            order = [start]
+            previous = None
+            current = start
+            while True:
+                candidates = [v for v in G.neighbors(current) if v != previous]
+                following = min(candidates) if len(order) == 1 else candidates[0]
+                if following == start:
+                    break
+                order.append(following)
+                previous, current = current, following
+            # The walk above may choose either direction; a circular layout
+            # preserves the cycle shape regardless of which direction is used.
+            angles = np.linspace(np.pi / 2, np.pi / 2 - 2 * np.pi, len(order), endpoint=False)
+            pos = {
+                node: (1.8 * np.cos(angle), 1.8 * np.sin(angle))
+                for node, angle in zip(order, angles)
+            }
+
         else:
-            # A fixed seed keeps a graph's layout stable when changing walks
-            # or switching between graph and histogram views.
-            pos = nx.spring_layout(G, seed=42, k=1.2 / np.sqrt(len(graph)))
+            # Exact hand-positioned layouts for the seven original vertices.
+            if name == "Spider tree 1":  # T1
+                pos = {
+                    1: (-3, 0), 2: (-2, 0), 3: (-1, 0),
+                    4: (0, 0), 5: (1, 0), 6: (-1, -1), 7: (-1, -2)
+                }
+            elif name == "Spider tree 2":  # T2
+                pos = {
+                    1: (-3, 0), 2: (-2, 0), 3: (-1, 0), 4: (0, 0),
+                    5: (0, -1), 6: (1, 0), 7: (2, 0)
+                }
+            elif name == "Tree T4":  # T3
+                 pos = {
+                    1: (0, 2), 2: (1, 2), 3: (0.8, 1.8), 4: (2, 2),
+                    5: (3, 2), 6: (3.2, 1.8), 7: (4, 2)
+                }
+            else:
+                raise ValueError(f"Unknown graph type: {name}")
+
+            # Extend each selected terminal arm in the same direction as its
+            # existing final edge. This keeps the original shape recognizable.
+            for node in sorted(set(G.nodes()) - set(pos)):
+                parent = next(iter(G.neighbors(node)))
+                grandparent_candidates = [v for v in G.neighbors(parent) if v != node]
+                if grandparent_candidates:
+                    grandparent = grandparent_candidates[0]
+                    dx = pos[parent][0] - pos[grandparent][0]
+                    dy = pos[parent][1] - pos[grandparent][1]
+                    length = (dx * dx + dy * dy) ** 0.5
+                    if length == 0:
+                        dx, dy, length = 1, 0, 1
+                    pos[node] = (pos[parent][0] + dx / length,
+                                pos[parent][1] + dy / length)
+                else:
+                    pos[node] = (pos[parent][0] + 1, pos[parent][1])
+
+        missing = set(G.nodes()) - set(pos)
+        if missing:
+            raise ValueError(f"Missing graph positions for vertices: {sorted(missing)}")
 
         return G, pos
 
