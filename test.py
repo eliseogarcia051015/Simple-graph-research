@@ -321,9 +321,9 @@ class GraphDashboard:
         self._add_button(
             [0.70, 0.08, 0.09, 0.055], "Rand Walk", self.random_walk
         )
-        # self._add_button(
-        #     [0.80, 0.08, 0.09, 0.055], "Export", self.export_action
-        # )
+        self._add_button(
+            [0.80, 0.08, 0.09, 0.055], "Export", self.export_action
+        )
         self._add_button(
             [0.43, 0.015, 0.14, 0.05], "Replay Walk", self.replay_walk
         )
