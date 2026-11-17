@@ -735,3 +735,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+#Todo: data for other vertices / add to latex
